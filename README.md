@@ -24,5 +24,6 @@ docker run -it --rm \
 -e HARBOR_USERNAME=login \
 -e HARBOR_PASSWORD=password \
 -e REPOSITORY_DOMAIN="harbor.mycompany.net" \
+-e DAYS_TOO_KEEP=90
 zdenekvicar/harbor-cleanup:v0.1
 ```

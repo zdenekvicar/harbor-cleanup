@@ -84,7 +84,7 @@ token=$(echo $output | cut -f2 -d"{" | cut -f2 -d":" | cut -f1 -d"," | sed 's/"/
 ###############################################
 output=$(curl -s -i -k -H "Content-Type: application/json" -H "Authorization:  Bearer $token" -X GET $url/v2/$project/$repo/tags/list)
 list=$(echo $output | sed 's/{/{;/g' | cut -f2 -d"{" | sed 's/;/{/g' | jq .tags[])
-tags=$(echo $list | sed 's\"\\g' | tr " " "\n")
+tags=$(echo $list | sed 's/"//g' | tr " " "\n")
 
 ###############################################
 #                 MAIN PART                   #

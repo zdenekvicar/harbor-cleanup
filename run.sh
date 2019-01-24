@@ -101,7 +101,7 @@ if [[ "$DAYS_TOO_KEEP" = "0" ]]; then
     echo -e "${NC}$(date) --- Intiating full repository cleanup ${NC}"
 
     # loop over all tags 
-    for i in $tags
+    for tag in $tags
     do
         # error catch section before deletion
         # 404 = tag already deleted (for some reason registry API returns already deleted tags in a list call)
@@ -121,8 +121,8 @@ if [[ "$DAYS_TOO_KEEP" = "0" ]]; then
 
         # cleaning part
         if [[ "$ACTION" = "delete" ]]; then
-            echo -n -e "${NC}$(date) --- ${ORANGE}DELETE action - Removing tag: $i ${NC}--- "
-            http_code=$(curl -sX DELETE "$url/api/repositories/$project%2F$repo/tags/$i" -H  "accept: application/json" -u $HARBOR_USERNAME:$HARBOR_PASSWORD -w "%{http_code}" -o /dev/null | sed '/^$/d')
+            echo -n -e "${NC}$(date) --- ${ORANGE}DELETE action - Removing tag: $tag ${NC}--- "
+            http_code=$(curl -sX DELETE "$url/api/repositories/$project%2F$repo/tags/$tag" -H  "accept: application/json" -u $HARBOR_USERNAME:$HARBOR_PASSWORD -w "%{http_code}" -o /dev/null | sed '/^$/d')
             case $http_code in
                 200) echo -e "${GREEN}OK: Delete successfull.${NC}" ;;
                 400) echo -e "${RED}ERROR: $http_code - Invalid repo_name.${NC}" ;;
@@ -132,7 +132,7 @@ if [[ "$DAYS_TOO_KEEP" = "0" ]]; then
                 *) echo -e "${RED}ERROR: $http_code - description is not available.${NC}" ;;
             esac
         else
-            echo  -e "${NC}$(date) --- ${GREEN}LIST action - tag marked for deletion: $i${NC}"
+            echo  -e "${NC}$(date) --- ${GREEN}LIST action - tag marked for deletion: $tag${NC}"
         fi
     done
 

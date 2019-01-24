@@ -60,15 +60,15 @@ fi
 echo -e "${NC}$(date) --------------------------- "
 echo -e "${NC}$(date) --- Harbor cleanup tool --- "
 echo -e "${NC}$(date) --------------------------- "
-echo -e "${NC}$(date) --- Selected repository domain:   ${ORANGE}$REPOSITORY_DOMAIN "
-echo -e "${NC}$(date) --- Selected repo for cleanup:    ${ORANGE}$REPO "
+echo -e "${NC}$(date) --- Selected repository domain:   ${ORANGE}$REPOSITORY_DOMAIN ${NC}"
+echo -e "${NC}$(date) --- Selected repo for cleanup:    ${ORANGE}$REPO ${NC}"
 if [[ "$ACTION" = "delete" ]]; then
-    echo -e "${NC}$(date) --- ${NC}Selected action:              ${RED}$ACTION --- deleting tags for $project/$repo --- "
+    echo -e "${NC}$(date) --- ${NC}Selected action:              ${RED}$ACTION --- deleting tags for $project/$repo --- ${NC}"
 else 
-    echo -e "${NC}$(date) --- ${NC}Selected action:              ${GREEN}$ACTION --- skipping delete task."
+    echo -e "${NC}$(date) --- ${NC}Selected action:              ${GREEN}$ACTION --- skipping delete task.${NC}"
 fi
 if [[ "$DAYS_TOO_KEEP" = "0" ]]; then
-    echo -e "${NC}$(date) --- Retention period selected:    ${RED}0 days ${NC}-> ${RED}FULL REPOSITORY DELETE"
+    echo -e "${NC}$(date) --- Retention period selected:    ${RED}0 days ${NC}-> ${RED}FULL REPOSITORY DELETE${NC}"
 else
     echo -e "${NC}$(date) --- Retention period selected:    ${RED}$DAYS_TOO_KEEP days${NC}"
 fi
@@ -82,9 +82,14 @@ token=$(echo $output | cut -f2 -d"{" | cut -f2 -d":" | cut -f1 -d"," | sed 's/"/
 ###############################################
 # Getting list of tags from given repository  #
 ###############################################
-output=$(curl -s -i -k -H "Content-Type: application/json" -H "Authorization:  Bearer $token" -X GET $url/v2/$project/$repo/tags/list)
-list=$(echo $output | sed 's/{/{;/g' | cut -f2 -d"{" | sed 's/;/{/g' | jq .tags[])
-tags=$(echo $list | sed 's/"//g' | tr " " "\n")
+output=$(curl -s -k -H "Content-Type: application/json" -H "Authorization:  Bearer $token" -X GET $url/v2/$project/$repo/tags/list | jq .tags)
+if [[ "$output" = "null" ]]; then
+    echo -e "${NC}$(date) --- ${GREEN}SKIPPED - Selected repository ${ORANGE}$project/$repo${GREEN} is already empty - there is nothing to be deleted."
+    end=$(date +%s)
+    echo -e "${NC}$(date) --- Runtime for ${ORANGE}$REPO${NC} cleanup: $((end-start)) seconds${NC}"
+    exit 0
+fi
+tags=$(echo $output | jq .[] | sed 's/"//g' | tr " " "\n")
 
 ###############################################
 #                 MAIN PART                   #
@@ -97,21 +102,21 @@ if [[ "$DAYS_TOO_KEEP" = "0" ]]; then
             echo -n -e "${NC}$(date) --- ${ORANGE}DELETE action - Removing tag: $i ${NC}--- "
             http_code=$(curl -sX DELETE "$url/api/repositories/$project%2F$repo/tags/$i" -H  "accept: application/json" -u $HARBOR_USERNAME:$HARBOR_PASSWORD -w "%{http_code}" -o /dev/null | sed '/^$/d')
             case $http_code in
-                200) echo -e "${GREEN}OK: Delete successfull." ;;
-                400) echo -e "${RED}ERROR: $http_code - Invalid repo_name." ;;
-                401) echo -e "${RED}ERROR: $http_code - User is not authorized to perform this action." ;;
-                403) echo -e "${RED}ERROR: $http_code - Forbidden." ;;
-                404) echo -e "${RED}ERROR: $http_code - Repository or tag not found." ;;
-                *) echo -e "${RED}ERROR: $http_code - description is not available." ;;
+                200) echo -e "${GREEN}OK: Delete successfull.${NC}" ;;
+                400) echo -e "${RED}ERROR: $http_code - Invalid repo_name.${NC}" ;;
+                401) echo -e "${RED}ERROR: $http_code - User is not authorized to perform this action.${NC}" ;;
+                403) echo -e "${RED}ERROR: $http_code - Forbidden.${NC}" ;;
+                404) echo -e "${RED}ERROR: $http_code - Repository or tag not found.${NC}" ;;
+                *) echo -e "${RED}ERROR: $http_code - description is not available.${NC}" ;;
             esac
         else
-            echo  -e "${NC}$(date) --- ${GREEN}LIST action - tag marked for deletion: $i"
+            echo  -e "${NC}$(date) --- ${GREEN}LIST action - tag marked for deletion: $i${NC}"
         fi
     done
 else
     # RETENTION DELETE SECTION
     # check each tag and decide whether it has to be removed or not
-    echo -e "${NC}$(date) --- Filtering tags based on selected retention "
+    echo -e "${NC}$(date) --- Filtering tags based on selected retention ${NC}"
     comparison_date=$(date -d $(date -d "now - $DAYS_TOO_KEEP days" +"%Y-%m-%d") +%s)
     IFS=$'\n'
 
@@ -120,7 +125,7 @@ else
         # double check if tag is present or not
         http_code=$(curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $token" -X GET $url/v2/$project%2F$repo/manifests/$tag -w "%{http_code}" -o /dev/null | sed '/^$/d')
         if [[ "$http_code" = "404" ]]; then
-            echo -e "${NC}$(date) --- ${NC}SKIPPED - tag $tag is already deleted."
+            echo -e "${NC}$(date) --- ${NC}SKIPPED - tag $tag is already deleted.${NC}"
             continue
         fi
         
@@ -132,7 +137,7 @@ else
         if [[ "$DEBUG" = "true" ]]; then
             echo -e "${NC}"$(curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $token" -X GET $url/v2/$project%2F$repo/manifests/$tag -w "%{http_code}")
             echo -e "${NC}-----------------------------------------"
-	        echo -e "${RED}DEBUG --- created: $created --- tag_date: $tag_date --- comparison_date: $comparison_date"
+	        echo -e "${NC}DEBUG --- created: $created --- tag_date: $tag_date --- comparison_date: $comparison_date${NC}"
         fi
         
         # compare dates and check whether tag should be removed
@@ -142,22 +147,22 @@ else
                 echo -n -e "${NC}$(date) --- ${ORANGE}DELETE action - Removing tag: $tag ${NC}--- "
                 http_code=$(curl -sX DELETE "$url/api/repositories/$project%2F$repo/tags/$tag" -H  "accept: application/json" -u $HARBOR_USERNAME:$HARBOR_PASSWORD -w "%{http_code}" -o /dev/null | sed '/^$/d')
                 case $http_code in
-                    200) echo -e "${GREEN}OK: Delete successfull." ;;
-                    400) echo -e "${RED}ERROR: $http_code - Invalid repo_name." ;;
-                    401) echo -e "${RED}ERROR: $http_code - User is not authorized to perform this action." ;;
-                    403) echo -e "${RED}ERROR: $http_code - Forbidden." ;;
-                    404) echo -e "${RED}ERROR: $http_code - Repository or tag not found." ;;
-                    *) echo -e "${RED}ERROR: $http_code - description is not available." ;;
+                    200) echo -e "${GREEN}OK: Delete successfull.${NC}" ;;
+                    400) echo -e "${RED}ERROR: $http_code - Invalid repo_name.${NC}" ;;
+                    401) echo -e "${RED}ERROR: $http_code - User is not authorized to perform this action.${NC}" ;;
+                    403) echo -e "${RED}ERROR: $http_code - Forbidden.${NC}" ;;
+                    404) echo -e "${RED}ERROR: $http_code - Repository or tag not found.${NC}" ;;
+                    *) echo -e "${RED}ERROR: $http_code - description is not available.${NC}" ;;
                 esac
             else
-                echo  -e "${NC}$(date) --- ${GREEN}LIST action - tag marked for deletion: $tag"
+                echo  -e "${NC}$(date) --- ${GREEN}LIST action - tag marked for deletion: $tag${NC}"
             fi
         else
-            echo  -e "${NC}$(date) --- ${GREEN}SKIPPED - tag is newer than $DAYS_TOO_KEEP days: $tag"
+            echo  -e "${NC}$(date) --- ${GREEN}SKIPPED - tag is newer than $DAYS_TOO_KEEP days: $tag${NC}"
         fi  
     done
     unset IFS
 fi
 
 end=$(date +%s)
-echo -e "${NC}$(date) --- Runtime for ${ORANGE}$REPO${NC} cleanup: $((end-start)) seconds"
+echo -e "${NC}$(date) --- Runtime for ${ORANGE}$REPO${NC} cleanup: $((end-start)) seconds${NC}"

@@ -117,21 +117,37 @@ else
 
     for tag in $tags
     do
+        # double check if tag is present or not
+        http_code=$(curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $token" -X GET $url/v2/$project%2F$repo/manifests/$tag -w "%{http_code}" -o /dev/null | sed '/^$/d')
+        if [[ "$http_code" = "404" ]]; then
+            echo -e "${NC}$(date) --- ${NC}SKIPPED - tag $tag is already deleted."
+            continue
+        fi
+        
+        # get creation date of tag (prepare for date comparison)
         created=$(curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $token" -X GET $url/v2/$project%2F$repo/manifests/$tag | jq -r '.history[].v1Compatibility' | jq '.created' | sort | tail -n1 | sed 's/"//g')
         tag_date=$(date -d $(echo $created | cut -f1 -d"T") +%s)
-
-        if [ $comparison_date -ge $tag_date ];
+        
+        # debug part (handled by DEBUG environment variable - optional)
+        if [[ "$DEBUG" = "true" ]]; then
+            echo -e "${NC}"$(curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $token" -X GET $url/v2/$project%2F$repo/manifests/$tag -w "%{http_code}")
+            echo -e "${NC}-----------------------------------------"
+	        echo -e "${RED}DEBUG --- created: $created --- tag_date: $tag_date --- comparison_date: $comparison_date"
+        fi
+        
+        # compare dates and check whether tag should be removed
+        if [ $comparison_date -ge $tag_date ]; 
         then
             if [[ "$ACTION" = "delete" ]]; then
                 echo -n -e "${NC}$(date) --- ${ORANGE}DELETE action - Removing tag: $tag"
                 http_code=$(curl -sX DELETE "$url/api/repositories/$project%2F$repo/tags/$tag" -H  "accept: application/json" -u $HARBOR_USERNAME:$HARBOR_PASSWORD -w "%{http_code}" -o /dev/null | sed '/^$/d')
                 case $http_code in
-                    200) echo -e "${GREEN} --- OK: Delete successfull." ;;
-                    400) echo -e "${RED} --- ERROR: $http_code - Invalid repo_name." ;;
-                    401) echo -e "${RED} --- ERROR: $http_code - User is not authorized to perform this action." ;;
-                    403) echo -e "${RED} --- ERROR: $http_code - Forbidden." ;;
-                    404) echo -e "${RED} --- ERROR: $http_code - Repository or tag not found." ;;
-                    *) echo -e "${RED} --- ERROR: $http_code - description is not available." ;;
+                    200) echo -e "${NC} --- ${GREEN}OK: Delete successfull." ;;
+                    400) echo -e "${NC} --- ${RED}ERROR: $http_code - Invalid repo_name." ;;
+                    401) echo -e "${NC} --- ${RED}ERROR: $http_code - User is not authorized to perform this action." ;;
+                    403) echo -e "${NC} --- ${RED}ERROR: $http_code - Forbidden." ;;
+                    404) echo -e "${NC} --- ${RED}ERROR: $http_code - Repository or tag not found." ;;
+                    *) echo -e "${NC} --- ${RED}ERROR: $http_code - description is not available." ;;
                 esac
             else
                 echo  -e "${NC}$(date) --- ${GREEN}LIST action - tag marked for deletion: $tag"

@@ -5,7 +5,7 @@ At this moment, it is tested and working with Harbor v1.6.0
 ## usage
 Image is expecting several environments variables in order to work.
 
-List of mandatory variables is here:
+List of variables is here:
 
 Var Name | Required | Description | Notes 
 ------------- | ------------- | ------------- |------------- 
@@ -15,6 +15,10 @@ DAYS_TOO_KEEP | **yes** | retention policy | Number of days worth of images to k
 HARBOR_USERNAME | **yes** | Harbor login username | Needs RW rights to wanted project/repo 
 HARBOR_PASSWORD | **yes** | Harbor login password | Needs RW rights to wanted project/repo 
 REPOSITORY_DOMAIN | **yes** | domain name of Harbor | example: harbor.mycompany.net 
+DEBUG | no | debug mode | true/false
+
+DEBUG enables debug mode just in date comparison phase due to various intermittent errors I did encounter during testing of this. 
+It is not enabled on another phases, where it was not needed so far.
 
 ## example usage command
 ```

@@ -74,14 +74,13 @@ else
 fi
 
 ###############################################
-# API preparation, getting token              #
+# Getting list of tags from given repository  #
 ###############################################
+# getting token
 output=$(curl -s -i -k -u $HARBOR_USERNAME:$HARBOR_PASSWORD $url/service/token?service=harbor-registry\&scope=repository:$project/$repo:pull,push)
 token=$(echo $output | cut -f2 -d"{" | cut -f2 -d":" | cut -f1 -d"," | sed 's/"//g')
 
-###############################################
-# Getting list of tags from given repository  #
-###############################################
+# getting tags
 output=$(curl -s -k -H "Content-Type: application/json" -H "Authorization:  Bearer $token" -X GET $url/v2/$project/$repo/tags/list | jq .tags)
 if [[ "$output" = "null" ]]; then
     echo -e "${NC}$(date) --- ${GREEN}SKIPPED - Selected repository ${ORANGE}$project/$repo${GREEN} is already empty - there is nothing to be deleted."
@@ -95,9 +94,30 @@ tags=$(echo $output | jq .[] | sed 's/"//g' | tr " " "\n")
 #                 MAIN PART                   #
 ###############################################
 if [[ "$DAYS_TOO_KEEP" = "0" ]]; then
-    # FULL DELETE SECTION
+
+    ###############################################
+    #       RETENTION 0 = FULL DELETE             #
+    ###############################################
+    echo -e "${NC}$(date) --- Intiating full repository cleanup ${NC}"
+
+    # loop over all tags 
     for i in $tags
     do
+        # error catch section before deletion
+        # 404 = tag already deleted (for some reason registry API returns already deleted tags in a list call)
+        # 401 = token is issued for 1800s, therefore it has to be renewed in case it expires
+        http_code=$(curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $token" -X GET $url/v2/$project%2F$repo/manifests/$tag -w "%{http_code}" -o /dev/null | sed '/^$/d')
+        case $http_code in
+            401) 
+                # token renewal
+                output=$(curl -s -i -k -u $HARBOR_USERNAME:$HARBOR_PASSWORD $url/service/token?service=harbor-registry\&scope=repository:$project/$repo:pull,push)
+                token=$(echo $output | cut -f2 -d"{" | cut -f2 -d":" | cut -f1 -d"," | sed 's/"//g')
+                ;;
+            404) 
+                echo -e "${NC}$(date) --- ${NC}SKIPPED - tag $tag is already deleted.${NC}" ;;
+        esac
+
+        # cleaning part
         if [[ "$ACTION" = "delete" ]]; then
             echo -n -e "${NC}$(date) --- ${ORANGE}DELETE action - Removing tag: $i ${NC}--- "
             http_code=$(curl -sX DELETE "$url/api/repositories/$project%2F$repo/tags/$i" -H  "accept: application/json" -u $HARBOR_USERNAME:$HARBOR_PASSWORD -w "%{http_code}" -o /dev/null | sed '/^$/d')
@@ -113,34 +133,46 @@ if [[ "$DAYS_TOO_KEEP" = "0" ]]; then
             echo  -e "${NC}$(date) --- ${GREEN}LIST action - tag marked for deletion: $i${NC}"
         fi
     done
+
 else
-    # RETENTION DELETE SECTION
-    # check each tag and decide whether it has to be removed or not
+    ###############################################
+    #       RETENTION >0 = date check delete      #
+    ###############################################
     echo -e "${NC}$(date) --- Filtering tags based on selected retention ${NC}"
+
     comparison_date=$(date -d $(date -d "now - $DAYS_TOO_KEEP days" +"%Y-%m-%d") +%s)
     IFS=$'\n'
 
+    # loop over all tags
     for tag in $tags
     do
-        # double check if tag is present or not
+        # error catch section before deletion
+        # 404 = tag already deleted (for some reason registry API returns already deleted tags in a list call)
+        # 401 = token is issued for 1800s, therefore it has to be renewed in case it expires
         http_code=$(curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $token" -X GET $url/v2/$project%2F$repo/manifests/$tag -w "%{http_code}" -o /dev/null | sed '/^$/d')
-        if [[ "$http_code" = "404" ]]; then
-            echo -e "${NC}$(date) --- ${NC}SKIPPED - tag $tag is already deleted.${NC}"
-            continue
-        fi
+        case $http_code in
+            401) 
+                # token renewal
+                output=$(curl -s -i -k -u $HARBOR_USERNAME:$HARBOR_PASSWORD $url/service/token?service=harbor-registry\&scope=repository:$project/$repo:pull,push)
+                token=$(echo $output | cut -f2 -d"{" | cut -f2 -d":" | cut -f1 -d"," | sed 's/"//g')
+                ;;
+            404) 
+                echo -e "${NC}$(date) --- ${NC}SKIPPED - tag $tag is already deleted.${NC}" ;;
+        esac
         
         # get creation date of tag (prepare for date comparison)
         created=$(curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $token" -X GET $url/v2/$project%2F$repo/manifests/$tag | jq -r '.history[].v1Compatibility' | jq '.created' | sort | tail -n1 | sed 's/"//g')
         tag_date=$(date -d $(echo $created | cut -f1 -d"T") +%s)
         
         # debug part (handled by DEBUG environment variable - optional)
+        # used to catch unexpected errors when getting created date of the tag
         if [[ "$DEBUG" = "true" ]]; then
             echo -e "${NC}"$(curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $token" -X GET $url/v2/$project%2F$repo/manifests/$tag -w "%{http_code}")
             echo -e "${NC}-----------------------------------------"
 	        echo -e "${NC}DEBUG --- created: $created --- tag_date: $tag_date --- comparison_date: $comparison_date${NC}"
         fi
         
-        # compare dates and check whether tag should be removed
+        # cleaning part (with date comparison)
         if [ $comparison_date -ge $tag_date ]; 
         then
             if [[ "$ACTION" = "delete" ]]; then

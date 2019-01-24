@@ -94,15 +94,15 @@ if [[ "$DAYS_TOO_KEEP" = "0" ]]; then
     for i in $tags
     do
         if [[ "$ACTION" = "delete" ]]; then
-            echo -n -e "${NC}$(date) --- ${ORANGE}DELETE action - Removing tag: $i"
+            echo -n -e "${NC}$(date) --- ${ORANGE}DELETE action - Removing tag: $i ${NC}--- "
             http_code=$(curl -sX DELETE "$url/api/repositories/$project%2F$repo/tags/$i" -H  "accept: application/json" -u $HARBOR_USERNAME:$HARBOR_PASSWORD -w "%{http_code}" -o /dev/null | sed '/^$/d')
             case $http_code in
-                200) echo -e "${GREEN} --- OK: Delete successfull." ;;
-                400) echo -e "${RED} --- ERROR: $http_code - Invalid repo_name." ;;
-                401) echo -e "${RED} --- ERROR: $http_code - User is not authorized to perform this action." ;;
-                403) echo -e "${RED} --- ERROR: $http_code - Forbidden." ;;
-                404) echo -e "${RED} --- ERROR: $http_code - Repository or tag not found." ;;
-                *) echo -e "${RED} --- ERROR: $http_code - description is not available." ;;
+                200) echo -e "${GREEN}OK: Delete successfull." ;;
+                400) echo -e "${RED}ERROR: $http_code - Invalid repo_name." ;;
+                401) echo -e "${RED}ERROR: $http_code - User is not authorized to perform this action." ;;
+                403) echo -e "${RED}ERROR: $http_code - Forbidden." ;;
+                404) echo -e "${RED}ERROR: $http_code - Repository or tag not found." ;;
+                *) echo -e "${RED}ERROR: $http_code - description is not available." ;;
             esac
         else
             echo  -e "${NC}$(date) --- ${GREEN}LIST action - tag marked for deletion: $i"
@@ -139,15 +139,15 @@ else
         if [ $comparison_date -ge $tag_date ]; 
         then
             if [[ "$ACTION" = "delete" ]]; then
-                echo -n -e "${NC}$(date) --- ${ORANGE}DELETE action - Removing tag: $tag"
+                echo -n -e "${NC}$(date) --- ${ORANGE}DELETE action - Removing tag: $tag ${NC}--- "
                 http_code=$(curl -sX DELETE "$url/api/repositories/$project%2F$repo/tags/$tag" -H  "accept: application/json" -u $HARBOR_USERNAME:$HARBOR_PASSWORD -w "%{http_code}" -o /dev/null | sed '/^$/d')
                 case $http_code in
-                    200) echo -e "${NC} --- ${GREEN}OK: Delete successfull." ;;
-                    400) echo -e "${NC} --- ${RED}ERROR: $http_code - Invalid repo_name." ;;
-                    401) echo -e "${NC} --- ${RED}ERROR: $http_code - User is not authorized to perform this action." ;;
-                    403) echo -e "${NC} --- ${RED}ERROR: $http_code - Forbidden." ;;
-                    404) echo -e "${NC} --- ${RED}ERROR: $http_code - Repository or tag not found." ;;
-                    *) echo -e "${NC} --- ${RED}ERROR: $http_code - description is not available." ;;
+                    200) echo -e "${GREEN}OK: Delete successfull." ;;
+                    400) echo -e "${RED}ERROR: $http_code - Invalid repo_name." ;;
+                    401) echo -e "${RED}ERROR: $http_code - User is not authorized to perform this action." ;;
+                    403) echo -e "${RED}ERROR: $http_code - Forbidden." ;;
+                    404) echo -e "${RED}ERROR: $http_code - Repository or tag not found." ;;
+                    *) echo -e "${RED}ERROR: $http_code - description is not available." ;;
                 esac
             else
                 echo  -e "${NC}$(date) --- ${GREEN}LIST action - tag marked for deletion: $tag"

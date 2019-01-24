@@ -63,7 +63,7 @@ echo -e "${NC}$(date) --------------------------- "
 echo -e "${NC}$(date) --- Selected repository domain:   ${ORANGE}$REPOSITORY_DOMAIN ${NC}"
 echo -e "${NC}$(date) --- Selected repo for cleanup:    ${ORANGE}$REPO ${NC}"
 if [[ "$ACTION" = "delete" ]]; then
-    echo -e "${NC}$(date) --- ${NC}Selected action:              ${RED}$ACTION --- deleting tags for $project/$repo --- ${NC}"
+    echo -e "${NC}$(date) --- ${NC}Selected action:              ${RED}$ACTION --- deleting tags for $project/$repo${NC}"
 else 
     echo -e "${NC}$(date) --- ${NC}Selected action:              ${GREEN}$ACTION --- skipping delete task.${NC}"
 fi
@@ -114,7 +114,9 @@ if [[ "$DAYS_TOO_KEEP" = "0" ]]; then
                 token=$(echo $output | cut -f2 -d"{" | cut -f2 -d":" | cut -f1 -d"," | sed 's/"//g')
                 ;;
             404) 
-                echo -e "${NC}$(date) --- ${NC}SKIPPED - tag $tag is already deleted.${NC}" ;;
+                echo -e "${NC}$(date) --- ${NC}SKIPPED - tag $tag is already deleted.${NC}"
+                continue
+                ;;
         esac
 
         # cleaning part
@@ -157,7 +159,9 @@ else
                 token=$(echo $output | cut -f2 -d"{" | cut -f2 -d":" | cut -f1 -d"," | sed 's/"//g')
                 ;;
             404) 
-                echo -e "${NC}$(date) --- ${NC}SKIPPED - tag $tag is already deleted.${NC}" ;;
+                echo -e "${NC}$(date) --- ${NC}SKIPPED - tag $tag is already deleted.${NC}"
+                continue 
+                ;;
         esac
         
         # get creation date of tag (prepare for date comparison)

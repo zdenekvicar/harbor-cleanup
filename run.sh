@@ -77,8 +77,7 @@ fi
 # Getting list of tags from given repository  #
 ###############################################
 # getting token
-output=$(curl -s -i -k -u $HARBOR_USERNAME:$HARBOR_PASSWORD $url/service/token?service=harbor-registry\&scope=repository:$project/$repo:pull,push)
-token=$(echo $output | cut -f2 -d"{" | cut -f2 -d":" | cut -f1 -d"," | sed 's/"//g')
+token=$(curl -s -k -u $HARBOR_USERNAME:$HARBOR_PASSWORD $url/service/token?service=harbor-registry\&scope=repository:$project/$repo:pull,push | jq .token | sed 's/"//g')
 
 # getting tags
 output=$(curl -s -k -H "Content-Type: application/json" -H "Authorization:  Bearer $token" -X GET $url/v2/$project/$repo/tags/list | jq .tags)
@@ -110,8 +109,7 @@ if [[ "$DAYS_TOO_KEEP" = "0" ]]; then
         case $http_code in
             401) 
                 # token renewal
-                output=$(curl -s -i -k -u $HARBOR_USERNAME:$HARBOR_PASSWORD $url/service/token?service=harbor-registry\&scope=repository:$project/$repo:pull,push)
-                token=$(echo $output | cut -f2 -d"{" | cut -f2 -d":" | cut -f1 -d"," | sed 's/"//g')
+                token=$(curl -s -k -u $HARBOR_USERNAME:$HARBOR_PASSWORD $url/service/token?service=harbor-registry\&scope=repository:$project/$repo:pull,push | jq .token | sed 's/"//g')
                 ;;
             404) 
                 echo -e "${NC}$(date) --- ${NC}SKIPPED - tag $tag is already deleted.${NC}"
@@ -155,8 +153,7 @@ else
         case $http_code in
             401) 
                 # token renewal
-                output=$(curl -s -i -k -u $HARBOR_USERNAME:$HARBOR_PASSWORD $url/service/token?service=harbor-registry\&scope=repository:$project/$repo:pull,push)
-                token=$(echo $output | cut -f2 -d"{" | cut -f2 -d":" | cut -f1 -d"," | sed 's/"//g')
+                token=$(curl -s -k -u $HARBOR_USERNAME:$HARBOR_PASSWORD $url/service/token?service=harbor-registry\&scope=repository:$project/$repo:pull,push | jq .token | sed 's/"//g')
                 ;;
             404) 
                 echo -e "${NC}$(date) --- ${NC}SKIPPED - tag $tag is already deleted.${NC}"
